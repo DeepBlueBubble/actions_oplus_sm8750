@@ -64,7 +64,7 @@
 - ✅ **Unicode Bypass Fix** – Path traversal protection *(always on)*
 
 ### 🚀 Performance & Scheduler
-- ✅ **Fengchi / HMBIRD** – Advanced CPU scheduler optimizations for SM8750
+- ✅ **Fengchi / HMBIRD** – Advanced CPU scheduler optimizations for SM8750 *(turning it off also removes HMBIRD symbols that some OnePlus vendor modules may use)*
 - ✅ **BORE Scheduler** – Burst-Oriented Response Enhancer (EEVDF) for snappier interactivity *(optional, off by default)*
 - ✅ **ADIOS IO Scheduler** – Improved read/write performance
 - ✅ **SchedUtil Optimizations** – Better CPU governor responsiveness *(optional)*
