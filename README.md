@@ -87,7 +87,7 @@
 ### 🎮 Gaming & Compatibility
 - ✅ **NTSync** – Low-latency NT sync primitives (Wine/Proton gaming) *(optional)*
 - ✅ **Droidspaces** – SYSVIPC + PID_NS + POSIX_MQUEUE for proot-distro
-- ✅ **LRNG v59** – Better entropy for crypto/gaming *(optional)*
+- ✅ **LRNG v60** – Better entropy for crypto/gaming *(optional)*
 
 ### 🔋 Battery & Power
 - ✅ **Wakelock Blocker** – Reduce idle battery drain

@@ -114,7 +114,7 @@ on:
         type: boolean
         default: false
       lrng_enable:
-        description: 'Enable LRNG v59 (better entropy for crypto/gaming)'
+        description: 'Enable LRNG v60 (better entropy for crypto/gaming)'
         required: true
         type: boolean
         default: false
@@ -856,23 +856,20 @@ jobs:
           CONFIG_NETFILTER_XT_TARGET_REDIRECT=y
           EOF
 
-      - name: Enable LRNG v59
+      - name: Enable LRNG v60
         if: inputs.lrng_enable
         working-directory: kernel_workspace/common
         run: |
-          echo "Enabling LRNG v59..."
-          git clone --depth=1 https://github.com/smuellerDD/lrng.git /tmp/lrng_src
-          cp -r /tmp/lrng_src/drivers/char/lrng/* drivers/char/lrng/
+          patch -p1 --forward --no-backup-if-mismatch < ../wildkernels_patches/common/lrng/lrng_v60_android15-6.6.patch
           cat >> arch/arm64/configs/gki_defconfig << 'EOF'
+          CONFIG_RANDOM_DEFAULT_IMPL=n
           CONFIG_LRNG=y
-          CONFIG_LRNG_SHA256=y
-          CONFIG_LRNG_COLLECTION_SIZE=1024
+          CONFIG_LRNG_COLLECTION_SIZE_1024=y
           CONFIG_LRNG_HEALTH_TESTS=y
-          CONFIG_LRNG_RCT_CUTOFF=31
-          CONFIG_LRNG_APT_CUTOFF=325
           CONFIG_LRNG_IRQ=y
           CONFIG_LRNG_CONTINUOUS_COMPRESSION_ENABLED=y
           EOF
+          echo "✅ LRNG v60 enabled"
 
       - name: Enable Wakelock Blocker
         if: inputs.wakelock_blocker
@@ -1203,7 +1200,7 @@ jobs:
                   feat(e("TG_CPU_OPT"),"Oryon CPU Optimizations"),
                   feat(e("TG_F2FS"),   "F2FS Optimizations"),
                   feat(e("TG_WG"),     "WireGuard VPN kernel level support"),
-                  feat(e("TG_LRNG"),   "LRNG v59"),
+                  feat(e("TG_LRNG"),   "LRNG v60"),
                   feat(e("TG_WLB"),    "Wakelock Blocker"),
                   feat(e("TG_NTSYNC"),      "NTSync (NT sync primitives)"),
                   feat(e("TG_DROIDSPACES"), "Droidspaces (proot-distro support)"),
@@ -1365,7 +1362,7 @@ jobs:
           - **Unicode Fix:** true (stock)
           - **BORE Scheduler:** ${{ github.event.inputs.bore_enable }}
           - **WireGuard:** ${{ github.event.inputs.wireguard }}
-          - **LRNG v59:** ${{ github.event.inputs.lrng_enable }}
+          - **LRNG v60:** ${{ github.event.inputs.lrng_enable }}
           - **Wakelock Blocker:** ${{ github.event.inputs.wakelock_blocker }}
           EOF
 
