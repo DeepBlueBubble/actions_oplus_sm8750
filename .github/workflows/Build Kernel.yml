@@ -380,6 +380,47 @@ jobs:
 
       - name: 🔧 Setup Patches
         run: |
+          cat > "$RUNNER_TEMP/apply_patch.sh" << 'EOF'
+          apply_patch() {
+            local mode="$1" tool="$2" file="$3"
+            shift 3
+            local name result
+            name="$(basename "$file")"
+            if [ ! -f "$file" ]; then
+              result="not found"
+            elif [ "$tool" = "git" ]; then
+              if git apply --check "$@" "$file" > /dev/null 2>&1; then
+                git apply "$@" "$file" && result="applied" || result="failed"
+              elif git apply --check --reverse "$@" "$file" > /dev/null 2>&1; then
+                result="already applied"
+              else
+                result="failed"
+              fi
+            else
+              if patch -p1 --forward --dry-run "$@" < "$file" > /dev/null 2>&1; then
+                patch -p1 --forward --no-backup-if-mismatch "$@" < "$file" > /dev/null && result="applied" || result="failed"
+              elif patch -p1 --reverse --dry-run "$@" < "$file" > /dev/null 2>&1; then
+                result="already applied"
+              else
+                result="failed"
+              fi
+            fi
+            echo "| $name | $result |" >> "$GITHUB_STEP_SUMMARY"
+            case "$result" in
+              applied|"already applied")
+                echo "✅ $name ($result)"
+                ;;
+              *)
+                if [ "$mode" = "required" ]; then
+                  echo "::error title=Patch $result::$name"
+                  return 1
+                fi
+                echo "::warning title=Patch $result::$name"
+                ;;
+            esac
+          }
+          EOF
+          printf '### Patches\n\n| Patch | Result |\n|---|---|\n' >> "$GITHUB_STEP_SUMMARY"
           cd kernel_workspace
           if [ "${{ github.event.inputs.SUSFS }}" == "true" ]; then
             git clone --depth=1 -b gki-android15-6.6 https://gitlab.com/simonpunk/susfs4ksu.git &
@@ -397,7 +438,8 @@ jobs:
 
           cd ./common
           cp ../kernel_patches/common/EnablePOLLY.patch ./
-          git apply -p1 < EnablePOLLY.patch || true
+          source "$RUNNER_TEMP/apply_patch.sh"
+          apply_patch required git EnablePOLLY.patch
           echo "✅ Base patches applied"
 
       - name: 📦 Apply SUSFS (ReSukiSU / SukiSU Ultra)
@@ -545,8 +587,9 @@ jobs:
           cp ../kernel_patches/zram/lz4armv8.S lib/lz4/lz4armv8.S
           cp ../kernel_patches/zram/lz4armv8.S lib/lz4/lz4armv8/lz4armv8.S
           cp ../kernel_patches/zram/002-zstd.patch ./
-          git apply -p1 < 001-lz4.patch || echo "LZ4 Patch failed or already applied"
-          patch -p1 < 002-zstd.patch || echo "ZSTD Patch failed or already applied"
+          source "$RUNNER_TEMP/apply_patch.sh"
+          apply_patch required git 001-lz4.patch
+          apply_patch required patch 002-zstd.patch
 
       - name: Apply LZ4KD Patch
         if: inputs.lz4kd_enable
@@ -557,7 +600,8 @@ jobs:
           cp -r ../SukiSU_patch/other/zram/lz4k/lib/* ./lib
           cp -r ../SukiSU_patch/other/zram/lz4k/crypto/* ./crypto
           cp ../SukiSU_patch/other/zram/zram_patch/${{ env.KERNEL_VERSION }}/lz4kd.patch ./
-          patch -p1 -F 3 < lz4kd.patch || true
+          source "$RUNNER_TEMP/apply_patch.sh"
+          apply_patch required patch lz4kd.patch -F 3
 
       - name: Configure ZRAM Writeback
         if: inputs.zram_writeback
@@ -596,9 +640,9 @@ jobs:
         working-directory: kernel_workspace/common
         run: |
           PATCH_URL="https://github.com/palazik/kernel_patches/raw/main/common/unicode_bypass_fix_6.1+.patch"
-          wget -qO /tmp/ub_fix.patch "$PATCH_URL" 2>/dev/null && \
-            patch -p1 --forward < /tmp/ub_fix.patch || true
-          echo "Unicode fix applied"
+          wget -qO /tmp/unicode_bypass_fix.patch "$PATCH_URL"
+          source "$RUNNER_TEMP/apply_patch.sh"
+          apply_patch required patch /tmp/unicode_bypass_fix.patch
 
       - name: Apply BORE Scheduler
         if: inputs.bore_enable
@@ -607,7 +651,8 @@ jobs:
           echo "CONFIG_SCHED_BORE=y" >> arch/arm64/configs/gki_defconfig
           BORE_URL="https://github.com/$GITHUB_REPOSITORY/raw/refs/heads/$GITHUB_REF_NAME/patches/bore.patch"
           wget -qO /tmp/bore.patch "$BORE_URL"
-          patch -p1 -F 3 < /tmp/bore.patch
+          source "$RUNNER_TEMP/apply_patch.sh"
+          apply_patch required patch /tmp/bore.patch -F 3
           echo "✅ BORE scheduler applied"
 
       - name: Apply Memory & Scheduler Optimization Patches
@@ -616,41 +661,32 @@ jobs:
         run: |
           echo "Applying WildKernels optimization patches..."
           PATCHES_DIR="../wildkernels_patches/common"
+          source "$RUNNER_TEMP/apply_patch.sh"
 
-          apply_patch() {
-            local patch="$1"
-            if [ -f "$PATCHES_DIR/$patch" ]; then
-              patch -p1 --forward < "$PATCHES_DIR/$patch" && \
-                echo "✅ $patch" || echo "⚠️ $patch (skipped/conflict)"
-            else
-              echo "⚠️ $patch not found, skipping"
-            fi
-          }
-
-          apply_patch "optimized_mem_operations.patch"
-          apply_patch "file_struct_8bytes_align.patch"
-          apply_patch "reduce_cache_pressure.patch"
-          apply_patch "mem_opt_prefetch.patch"
-          apply_patch "optimise_memcmp.patch"
-          apply_patch "minimise_wakeup_time.patch"
-          apply_patch "int_sqrt.patch"
-          apply_patch "reduce_gc_thread_sleep_time.patch"
-          apply_patch "add_timeout_wakelocks_globally.patch"
-          apply_patch "f2fs_reduce_congestion.patch"
-          apply_patch "reduce_freeze_timeout.patch"
-          apply_patch "clear_page_16bytes_align.patch"
-          apply_patch "add_limitation_scaling_min_freq.patch"
-          apply_patch "re_write_limitation_scaling_min_freq.patch"
-          apply_patch "adjust_cpu_scan_order.patch"
-          apply_patch "avoid_extra_s2idle_wake_attempts.patch"
-          apply_patch "disable_cache_hot_buddy.patch"
-          apply_patch "f2fs_enlarge_min_fsync_blocks.patch"
-          apply_patch "increase_ext4_default_commit_age.patch"
-          apply_patch "increase_sk_mem_packets.patch"
-          apply_patch "reduce_pci_pme_wakeups.patch"
-          apply_patch "silence_irq_cpu_logspam.patch"
-          apply_patch "silence_system_logspam.patch"
-          apply_patch "use_unlikely_wrap_cpufreq.patch"
+          apply_patch optional patch "$PATCHES_DIR/optimized_mem_operations.patch"
+          apply_patch optional patch "$PATCHES_DIR/file_struct_8bytes_align.patch"
+          apply_patch optional patch "$PATCHES_DIR/reduce_cache_pressure.patch"
+          apply_patch optional patch "$PATCHES_DIR/mem_opt_prefetch.patch"
+          apply_patch optional patch "$PATCHES_DIR/optimise_memcmp.patch"
+          apply_patch optional patch "$PATCHES_DIR/minimise_wakeup_time.patch"
+          apply_patch optional patch "$PATCHES_DIR/int_sqrt.patch"
+          apply_patch optional patch "$PATCHES_DIR/reduce_gc_thread_sleep_time.patch"
+          apply_patch optional patch "$PATCHES_DIR/add_timeout_wakelocks_globally.patch"
+          apply_patch optional patch "$PATCHES_DIR/f2fs_reduce_congestion.patch"
+          apply_patch optional patch "$PATCHES_DIR/reduce_freeze_timeout.patch"
+          apply_patch optional patch "$PATCHES_DIR/clear_page_16bytes_align.patch"
+          apply_patch optional patch "$PATCHES_DIR/add_limitation_scaling_min_freq.patch"
+          apply_patch optional patch "$PATCHES_DIR/re_write_limitation_scaling_min_freq.patch"
+          apply_patch optional patch "$PATCHES_DIR/adjust_cpu_scan_order.patch"
+          apply_patch optional patch "$PATCHES_DIR/avoid_extra_s2idle_wake_attempts.patch"
+          apply_patch optional patch "$PATCHES_DIR/disable_cache_hot_buddy.patch"
+          apply_patch optional patch "$PATCHES_DIR/f2fs_enlarge_min_fsync_blocks.patch"
+          apply_patch optional patch "$PATCHES_DIR/increase_ext4_default_commit_age.patch"
+          apply_patch optional patch "$PATCHES_DIR/increase_sk_mem_packets.patch"
+          apply_patch optional patch "$PATCHES_DIR/reduce_pci_pme_wakeups.patch"
+          apply_patch optional patch "$PATCHES_DIR/silence_irq_cpu_logspam.patch"
+          apply_patch optional patch "$PATCHES_DIR/silence_system_logspam.patch"
+          apply_patch optional patch "$PATCHES_DIR/use_unlikely_wrap_cpufreq.patch"
 
           echo "✅ Optimization patches applied"
 
@@ -672,22 +708,11 @@ jobs:
             fi
           done
 
-          if [ -z "$NTSYNC_PATCH" ]; then
-            echo "⚠️ NTSync compat patch for android15-6.6 not found in wildkernels_patches."
-            echo "   Falling back to upstream ntsync driver (mainline backport)..."
-            if [ -f "$NTSYNC_DIR/ntsync_base.patch" ]; then
-              patch -p1 --forward < "$NTSYNC_DIR/ntsync_base.patch" || true
-            else
-              echo "::warning::NTSync base patch also not found. Skipping NTSync."
-              exit 0
-            fi
-          else
-            echo "Using: $(basename $NTSYNC_PATCH)"
-            patch -p1 --forward < "$NTSYNC_PATCH" || true
-            if [ -f "$NTSYNC_DIR/ntsync_base.patch" ]; then
-              patch -p1 --forward < "$NTSYNC_DIR/ntsync_base.patch" || true
-            fi
+          source "$RUNNER_TEMP/apply_patch.sh"
+          if [ -n "$NTSYNC_PATCH" ]; then
+            apply_patch required patch "$NTSYNC_PATCH"
           fi
+          apply_patch required patch "$NTSYNC_DIR/ntsync_base.patch"
 
           echo "CONFIG_NTSYNC=y" >> arch/arm64/configs/gki_defconfig
           echo "✅ NTSync enabled"
@@ -699,15 +724,9 @@ jobs:
           echo "Enabling Droidspaces (portable Linux containers)..."
           DS_DIR="../wildkernels_patches/common/droidspaces"
 
-          if [ -f "$DS_DIR/fix_sysvipc_kabi_6_7_8.patch" ]; then
-            patch -p1 --forward < "$DS_DIR/fix_sysvipc_kabi_6_7_8.patch" || true
-          else
-            echo "⚠️ fix_sysvipc_kabi_6_7_8.patch not found, skipping KABI fix"
-          fi
-
-          if [ -f "$DS_DIR/0001-Return-ghost-task-if-task-is-null-and-is-requested-b.patch" ]; then
-            patch -p1 --forward < "$DS_DIR/0001-Return-ghost-task-if-task-is-null-and-is-requested-b.patch" || true
-          fi
+          source "$RUNNER_TEMP/apply_patch.sh"
+          apply_patch required patch "$DS_DIR/fix_sysvipc_kabi_6_7_8.patch"
+          apply_patch required patch "$DS_DIR/0001-Return-ghost-task-if-task-is-null-and-is-requested-b.patch"
 
           cat >> arch/arm64/configs/gki_defconfig << 'EOF'
           CONFIG_SYSVIPC=y
@@ -751,13 +770,8 @@ jobs:
           CONFIG_IP6_NF_TARGET_MASQUERADE=y
           EOF
 
-          IPNAT_FIX="../wildkernels_patches/common/IPv6_NAT_FIX.patch"
-          if [ -f "$IPNAT_FIX" ]; then
-            patch -p1 -F 3 < "$IPNAT_FIX" || true
-            echo "✅ IPv6 NAT fix applied"
-          else
-            echo "⚠️ IPv6_NAT_FIX.patch not found, skipping"
-          fi
+          source "$RUNNER_TEMP/apply_patch.sh"
+          apply_patch required patch ../wildkernels_patches/common/IPv6_NAT_FIX.patch -F 3
           echo "✅ IP_SET + IPv6 NAT enabled"
 
       - name: Add TTL/HL Target Support
@@ -820,7 +834,8 @@ jobs:
         if: inputs.lrng_enable
         working-directory: kernel_workspace/common
         run: |
-          patch -p1 --forward --no-backup-if-mismatch < ../wildkernels_patches/common/lrng/lrng_v60_android15-6.6.patch
+          source "$RUNNER_TEMP/apply_patch.sh"
+          apply_patch required patch ../wildkernels_patches/common/lrng/lrng_v60_android15-6.6.patch
           cat >> arch/arm64/configs/gki_defconfig << 'EOF'
           CONFIG_RANDOM_DEFAULT_IMPL=n
           CONFIG_LRNG=y
@@ -869,12 +884,8 @@ jobs:
           echo "CONFIG_TCP_CONG_ADVANCED=y" >> arch/arm64/configs/gki_defconfig
           echo "CONFIG_TCP_CONG_BBR3=y"     >> arch/arm64/configs/gki_defconfig
           BBRV3_PATCH="../wildkernels_patches/common/bbrv3/0001-net-tcp-backport-BBRv3-to-${ANDROID_VERSION}-${KERNEL_VERSION}.patch"
-          if [ -f "$BBRV3_PATCH" ]; then
-            patch -p1 -F 3 < "$BBRV3_PATCH"
-            echo "✅ BBRv3 patch applied"
-          else
-            echo "::warning::BBRv3 patch not found at $BBRV3_PATCH — skipping"
-          fi
+          source "$RUNNER_TEMP/apply_patch.sh"
+          apply_patch required patch "$BBRV3_PATCH" -F 3
           echo "::endgroup::"
 
       - name: Configure LTO
