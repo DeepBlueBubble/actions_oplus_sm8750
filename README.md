@@ -142,8 +142,6 @@
 ```bash
 -O2                          # Balanced optimization level
 -mcpu=oryon-1               # Target Snapdragon 8 Elite cores
--fno-strict-aliasing        # Safer pointer aliasing
--fno-delete-null-pointer-checks  # Extra null safety
 -flto=thin                  # ThinLTO for link-time optimization (optional)
 -ffile-prefix-map=...       # Reproducible builds
 ```

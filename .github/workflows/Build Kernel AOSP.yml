@@ -644,14 +644,7 @@ jobs:
       - name: Prepare CPU Optimizations (Oryon SM8750)
         if: inputs.cpu_opt
         run: |
-          echo "EXTRA_CFLAGS=-mcpu=oryon-1 -fno-strict-aliasing -fno-delete-null-pointer-checks" >> $GITHUB_ENV
-          cd kernel_workspace/common
-          cat >> arch/arm64/configs/gki_defconfig << 'EOF'
-          CONFIG_ARM64_ERRATUM_2658417=y
-          CONFIG_ARCH_QCOM=y
-          CONFIG_PREEMPT=y
-          CONFIG_NO_HZ_IDLE=y
-          EOF
+          echo "EXTRA_CFLAGS=-mcpu=oryon-1" >> $GITHUB_ENV
           echo "✅ Oryon flags prepared."
 
       - name: Apply Unicode Bypass Fix
