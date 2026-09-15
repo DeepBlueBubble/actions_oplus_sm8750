@@ -933,7 +933,7 @@ jobs:
         run: |
           cd kernel_workspace
           if [[ "${{ github.event.inputs.lto_type }}" == "none" ]]; then
-            echo "CONFIG_LTO_CLANG_NONE=y" >> ./common/arch/arm64/configs/gki_defconfig
+            echo "CONFIG_LTO_NONE=y" >> ./common/arch/arm64/configs/gki_defconfig
           elif [[ "${{ github.event.inputs.lto_type }}" == "full" ]]; then
             echo "CONFIG_LTO_CLANG_FULL=y" >> ./common/arch/arm64/configs/gki_defconfig
           else
