@@ -588,7 +588,7 @@ jobs:
           cp ../kernel_patches/zram/lz4armv8.S lib/lz4/lz4armv8/lz4armv8.S
           cp ../kernel_patches/zram/002-zstd.patch ./
           source "$RUNNER_TEMP/apply_patch.sh"
-          apply_patch required git 001-lz4.patch
+          apply_patch optional git 001-lz4.patch
           apply_patch required patch 002-zstd.patch
 
       - name: Apply LZ4KD Patch
