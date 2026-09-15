@@ -303,28 +303,6 @@ jobs:
           restore-keys: |
             lto-cache-${{ runner.os }}-${{ github.ref_name }}-
 
-      - name: Pull Public CCache
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Checking local cache status..."
-          if [ -d "${{ env.CCACHE_DIR }}" ] && [ "$(ls -A ${{ env.CCACHE_DIR }} 2>/dev/null)" ]; then
-            echo "Local cache loaded successfully, skipping public cache pull!"
-            exit 0
-          fi
-
-          echo "Cache miss, attempting to pull public ccache..."
-          mkdir -p ${{ env.CCACHE_DIR }}
-          FILE_NAME="ccache-${{ env.KERNEL_FULL_VERSION }}.tar.zst"
-
-          if gh release download -p "$FILE_NAME" -R cctv18/public_ccache; then
-            echo "Successfully downloaded $FILE_NAME, extracting..."
-            tar -I zstd -xf "$FILE_NAME" -C ${{ env.CCACHE_DIR }}
-            echo "Public ccache restored successfully!"
-          else
-            echo "Public ccache not found, proceeding with full clean build..."
-          fi
-
       - name: Init and Config CCache
         run: |
           export CCACHE_DIR="${{ env.CCACHE_DIR }}"
