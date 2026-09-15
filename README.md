@@ -15,7 +15,7 @@
 <p align="center">
   <a href="#-features"><img src="https://img.shields.io/badge/Features-20+-brightgreen?style=flat-square" /></a>
   <a href="#-build-workflow"><img src="https://img.shields.io/badge/Build-GitHub_Actions-blue?style=flat-square" /></a>
-  <a href="#-memory--scheduler-optimizations"><img src="https://img.shields.io/badge/Optimizations-25+_patches-purple?style=flat-square" /></a>
+  <a href="#-memory--scheduler-optimizations"><img src="https://img.shields.io/badge/Optimizations-24_patches-purple?style=flat-square" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/palazik/actions_oplus_sm8750?style=flat-square" /></a>
 </p>
 
@@ -100,7 +100,7 @@
 
 ## 🧠 Memory & Scheduler Optimizations (WildKernels)
 
-> 25 low-level patches for reduced latency, better cache usage, and improved responsiveness.
+> 24 low-level patches for reduced latency, better cache usage, and improved responsiveness.
 
 | Patch | Purpose |
 |-------|---------|
@@ -111,7 +111,6 @@
 | `optimise_memcmp.patch` | Faster memory comparison routines |
 | `minimise_wakeup_time.patch` | Reduce CPU wake latency for interactive tasks |
 | `int_sqrt.patch` | Optimized integer square root for scheduler math |
-| `force_tcp_nodelay.patch` | Reduce TCP latency for gaming/streaming |
 | `reduce_gc_thread_sleep_time.patch` | Shorter GC thread sleeps for smoother UI |
 | `add_timeout_wakelocks_globally.patch` | Prevent aggressive wakelock timeouts |
 | `f2fs_reduce_congestion.patch` | Lower F2FS write contention |
@@ -163,7 +162,7 @@
    - 🔘 **KSU type**: `ReSukiSU` (default) / `SukiSU Ultra` / `KernelSU` / `KernelSU Next`
    - ✅ SuSFS (recommended for hiding)
    - ✅ Fengchi (performance scheduler)
-   - ✅ Memory Opt Patches (25 optimizations)
+   - ✅ Memory Opt Patches (24 optimizations)
    - 🔘 LTO Type: `thin` (balanced) / `none` (fastest compile) / `full` (max optimization)
    - 🔘 Optional features: LZ4KD, NTSync, IPv6 NAT, etc.
 5. Click **"Run workflow"** → Wait ~5-6 minutes

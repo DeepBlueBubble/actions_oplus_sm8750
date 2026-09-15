@@ -701,7 +701,6 @@ jobs:
           apply_patch "optimise_memcmp.patch"
           apply_patch "minimise_wakeup_time.patch"
           apply_patch "int_sqrt.patch"
-          apply_patch "force_tcp_nodelay.patch"
           apply_patch "reduce_gc_thread_sleep_time.patch"
           apply_patch "add_timeout_wakelocks_globally.patch"
           apply_patch "f2fs_reduce_congestion.patch"
