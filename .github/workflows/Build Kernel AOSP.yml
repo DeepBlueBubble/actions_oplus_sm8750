@@ -88,11 +88,6 @@ on:
         required: true
         type: boolean
         default: false
-      schedutil_opt:
-        description: 'Enable SchedUtil optimizations (better CPU governor)'
-        required: true
-        type: boolean
-        default: false
       cpu_opt:
         description: 'CPU Optimizations (Oryon MCPU tuning for SM8750)'
         required: true
@@ -589,19 +584,6 @@ jobs:
           else
             echo "CONFIG_HMBIRD_SCHED=n" >> "$DEFCONFIG"
             echo "Fengchi disabled"
-          fi
-
-      - name: Configure SchedUtil Optimizations
-        if: inputs.schedutil_opt
-        working-directory: kernel_workspace
-        run: |
-          cat >> common/arch/arm64/configs/gki_defconfig << 'EOF'
-          CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y
-          CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
-          EOF
-          SU_C="common/kernel/sched/cpufreq_schedutil.c"
-          if [ -f "$SU_C" ]; then
-            sed -i 's/LATENCY_MULTIPLIER\s*=\s*1000/LATENCY_MULTIPLIER = 1000/' "$SU_C" 2>/dev/null || true
           fi
 
       - name: Prepare CPU Optimizations (Oryon SM8750)
@@ -1125,7 +1107,6 @@ jobs:
           export TG_UFIX="true"
           export TG_BORE="${{ github.event.inputs.bore_enable }}"
           export TG_ZWB="${{ github.event.inputs.zram_writeback }}"
-          export TG_SCHED="${{ github.event.inputs.schedutil_opt }}"
           export TG_CLANG="clang-r563880c"
           export TG_CPU_OPT="${{ github.event.inputs.cpu_opt }}"
           export TG_F2FS="${{ github.event.inputs.f2fs_opt }}"
@@ -1176,7 +1157,6 @@ jobs:
                   feat(e("TG_UFIX"),    "Unicode Bypass Fix"),
                   feat(e("TG_BORE"),    "BORE Scheduler (EEVDF burst enhancer)"),
                   feat(e("TG_ZWB"),     "ZRAM Writeback"),
-                  feat(e("TG_SCHED"),  "SchedUtil Optimizations"),
                   feat(e("TG_CPU_OPT"),"Oryon CPU Optimizations"),
                   feat(e("TG_F2FS"),   "F2FS Optimizations"),
                   feat(e("TG_WG"),     "WireGuard VPN kernel level support"),
@@ -1334,7 +1314,6 @@ jobs:
           - **LZ4:** ${{ github.event.inputs.lz4_enable }}
           - **LZ4KD:** ${{ github.event.inputs.lz4kd_enable }}
           - **ZRAM Writeback:** ${{ github.event.inputs.zram_writeback }}
-          - **SchedUil Optimizations:** ${{ github.event.inputs.schedutil_opt }}
           - **BBR/Brutal:** ${{ github.event.inputs.bbr_enable }}
           - **BBRv3:** true (stock)
           - **ADIOS IO:** ${{ github.event.inputs.adios_enable }}
