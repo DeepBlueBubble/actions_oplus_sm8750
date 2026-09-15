@@ -987,6 +987,8 @@ jobs:
           mkdir -p "$LDCACHE_DIR"
 
           cd kernel_workspace/common
+          set -o pipefail
+          : > /tmp/kbuild.log
 
           echo '#!/bin/bash' > ld-wrapper
           echo 'ld.lld "$@" --thinlto-cache-dir=$LDCACHE_DIR --thinlto-jobs=$(($(nproc --all) / 2))' >> ld-wrapper
@@ -1004,13 +1006,13 @@ jobs:
             CC="ccache clang" LD="$(pwd)/ld-wrapper" HOSTLD="$(pwd)/ld-wrapper" \
             O=$GITHUB_WORKSPACE/kout \
             KCFLAGS="-O2 -pipe -Wno-error -Wno-implicit-function-declaration -Wno-implicit-int -Wno-default-const-init-var-unsafe -Wno-format -Wno-unknown-warning-option" \
-            gki_defconfig
+            gki_defconfig 2>&1 | tee -a /tmp/kbuild.log
 
           make -j$(nproc --all) LLVM=1 LLVM_IAS=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
             CC="ccache clang" LD="$(pwd)/ld-wrapper" HOSTLD="$(pwd)/ld-wrapper" \
             O=$GITHUB_WORKSPACE/kout \
             KCFLAGS="-O2 -pipe -Wno-error -Wno-implicit-function-declaration -Wno-implicit-int -Wno-default-const-init-var-unsafe -Wno-format -Wno-unknown-warning-option ${EXTRA_CFLAGS:-} ${MAP}" \
-            Image
+            Image 2>&1 | tee -a /tmp/kbuild.log
 
           echo "Kernel Compilation Complete!"
           ccache -c
@@ -1280,6 +1282,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           DATE=$(date +"%Y-%m-%d %H:%M:%S %Z")
+          COMMIT_MSG="Workflow Dispatch: ${{ env.KERNEL_FULL_VERSION }}"
           REPO_URL="https://github.com/${{ github.repository }}"
           CAPTION="❌ <b>Kernel Build Failed!</b>
 
@@ -1289,10 +1292,11 @@ jobs:
           📝 <b>Commit:</b> <code>$COMMIT_MSG</code>
           🔢 <b>Hash:</b> <a href=\"$REPO_URL/commit/${{ github.sha }}\">$(echo "${{ github.sha }}" | cut -c1-8)</a>"
 
-          if [ -f /tmp/kbuild.log ]; then
+          if [ -s /tmp/kbuild.log ]; then
+            tail -n 3000 /tmp/kbuild.log > /tmp/kbuild_tail.log
             curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_TOKEN/sendDocument" \
               -F chat_id="$TELEGRAM_CHAT_ID" \
-              -F document="@/tmp/kbuild.log" \
+              -F document="@/tmp/kbuild_tail.log" \
               -F caption="$CAPTION" \
               -F parse_mode="HTML"
           else
